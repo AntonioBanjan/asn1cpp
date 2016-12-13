@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.banjan</groupId>
+	<artifactId>asn1</artifactId>
+	<version>1.0-SNAPSHOT</version>
+	<name>${project.artifactId}</name>
+
+	<packaging>nar</packaging>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.imatic</groupId>
+			<artifactId>zmq</artifactId>
+			<version>4.0.4</version>
+			<type>nar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.google</groupId>
+			<artifactId>gtest</artifactId>
+			<version>1.6.0</version>
+			<type>nar</type>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>com.github.maven-nar</groupId>
+					<artifactId>nar-maven-plugin</artifactId>
+					<version>3.2.2</version>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>rpm-maven-plugin</artifactId>
+					<version>2.1.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-antrun-plugin</artifactId>
+					<version>1.8</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>com.github.maven-nar</groupId>
+				<artifactId>nar-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<libraries>
+						<library>
+							<type>static</type>
+							<run>true</run>
+						</library>
+					</libraries>
+					<cpp>
+						<defines>
+							<define>LINUX</define>
+							<define>UNIX</define>
+							<define>__GXX_EXPERIMENTAL_CXX0X__</define>
+							<define>_GLIBCXX_USE_NANOSLEEP</define>
+							<define>_GLIBCXX_USE_C99_STDINT_TR1</define>
+							<define>_GLIBCXX_USE_GETTIMEOFDAY</define>
+						</defines>
+						<optimize>speed</optimize>
+						<options>
+							<option>-fPIC</option>
+							<option>-g3</option>
+							<option>-Wall</option>
+							<option>-O0</option>
+							<option>-funsigned-char</option>
+							<option>-std=c++11</option>
+						</options>
+					</cpp>
+					<linker>
+						<testOptions>
+							<testOption>-lpthread</testOption>
+						</testOptions>
+					</linker>
+					<tests>
+						<test>
+							<name>asn1-test</name>
+							<link>static</link>
+							<run>true</run>
+						</test>
+					</tests>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>Prepare Sources</id>
+						<phase>generate-sources</phase>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.directory}/dev/dep-include" />
+
+								<copy todir="${project.build.directory}/dev/dep-include">
+									<fileset id="headers" dir="${project.build.directory}/nar">
+										<exclude name="${project.artifactId}*/**/*.h" />
+										<include name="**/*.h" />
+									</fileset>
+									<mapper type="regexp"
+										from="^(.*)\-[0-9]+\.[0-9]+(\.[0-9]+)?((-SNAPSHOT)?\-noarch)\/include\/(.*\/)?(.*\.h(pp)?)"
+										to="/\5\6" />
+								</copy>
+
+								<pathconvert pathsep="," property="header-files"
+									refid="headers">
+									<mapper type="regexp"
+										from="${project.build.directory}/nar/(.*)\-[0-9]+\.[0-9]+(\.[0-9]+)?((-SNAPSHOT)?\-noarch)\/include\/(.*\.h(pp)?)"
+										to="/\5\6" />
+								</pathconvert>
+
+								<echo>Created dep-includes with ${header-files}</echo>
+
+								<mkdir dir="${project.build.directory}/dev/dep-bin/static" />
+
+								<copy todir="${project.build.directory}/dev/dep-bin/static">
+									<fileset id="static-libs" dir="${project.build.directory}/nar">
+										<exclude name="${project.artifactId}*/**/*.a" />
+										<include name="**/*.a" />
+									</fileset>
+									<mapper type="flatten" />
+								</copy>
+
+								<pathconvert pathsep="," property="static-libs-files"
+									refid="static-libs">
+									<mapper type="flatten" />
+								</pathconvert>
+
+								<echo>Created dep-bin/static with ${static-libs-files}</echo>
+
+								<mkdir dir="${project.build.directory}/dev/dep-bin/dynamic" />
+
+								<copy todir="${project.build.directory}/dev/dep-bin/dynamic">
+									<fileset id="dynamic-libs" dir="${project.build.directory}/nar">
+										<exclude name="${project.artifactId}*/**/*.so*" />
+										<include name="**/*.so*" />
+									</fileset>
+									<mapper type="flatten" />
+								</copy>
+
+								<pathconvert pathsep="," property="dynamic-libs-files"
+									refid="dynamic-libs">
+									<mapper type="flatten" />
+								</pathconvert>
+
+								<echo>Created dep-bin/dynamic with ${dynamic-libs-files}</echo>
+
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>Prepare Test Sources</id>
+						<phase>process-test-classes</phase>
+						<configuration>
+							<target>
+
+								<mkdir dir="${project.build.directory}/dev/test/dep-include" />
+
+								<copy todir="${project.build.directory}/dev/test/dep-include">
+									<fileset id="headers" dir="${project.build.directory}/test-nar">
+										<exclude name="${project.artifactId}*/**/*.h" />
+										<include name="**/*.h" />
+									</fileset>
+									<mapper type="regexp"
+										from="^(.*)\-[0-9]+\.[0-9]+(\.[0-9]+)?((-SNAPSHOT)?\-noarch)\/include\/(.*\/)?(.*\.h(pp)?)"
+										to="/\5/\6" />
+								</copy>
+
+								<pathconvert pathsep="," property="header-files"
+									refid="headers">
+									<mapper type="regexp"
+										from="${project.build.directory}/test-nar/(.*)\-[0-9]+\.[0-9]+(\.[0-9]+)?((-SNAPSHOT)?\-noarch)\/include\/(.*\/)?(.*\.h(pp)?)"
+										to="/\5/\6" />
+								</pathconvert>
+
+
+								<echo>Created test/dep-includes with ${header-files}</echo>
+
+								<mkdir dir="${project.build.directory}/dev/test/dep-bin/static" />
+
+								<copy todir="${project.build.directory}/dev/test/dep-bin/static">
+									<fileset id="static-libs" dir="${project.build.directory}/test-nar">
+										<exclude name="${project.artifactId}*/**/*.a" />
+										<include name="**/*.a" />
+									</fileset>
+									<mapper type="flatten" />
+								</copy>
+
+								<pathconvert pathsep="," property="static-libs-files"
+									refid="static-libs">
+									<mapper type="flatten" />
+								</pathconvert>
+
+								<echo>Created test/dep-bin/static with ${static-libs-files}</echo>
+
+								<mkdir dir="${project.build.directory}/dev/test/dep-bin/dynamic" />
+
+								<copy todir="${project.build.directory}/dev/test/dep-bin/dynamic">
+									<fileset id="dynamic-libs" dir="${project.build.directory}/test-nar">
+										<exclude name="${project.artifactId}*/**/*.so*" />
+										<include name="**/*.so*" />
+									</fileset>
+									<mapper type="flatten" />
+								</copy>
+
+								<pathconvert pathsep="," property="dynamic-libs-files"
+									refid="dynamic-libs">
+									<mapper type="flatten" />
+								</pathconvert>
+
+								<echo>Created test/dep-bin/dynamic with ${dynamic-libs-files}</echo>
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>rpm-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>Package build artifacts in RPM</id>
+						<phase>package</phase>
+						<goals>
+							<goal>attached-rpm</goal>
+						</goals>
+						<configuration>
+							<defineStatements>
+								<defineStatement>_arch %(uname -r)</defineStatement>
+							</defineStatements>
+							<group>Applications/Internet</group>
+							<name>${project.artifactId}</name>
+							<license>GPL</license>
+							<mappings>
+								<mapping>
+									<directory>/usr/local/lib/</directory>
+									<filemode>750</filemode>
+									<sources>
+										<source>
+											<location>${project.build.directory}/nar/${project.artifactId}-${project.version}-amd64-Linux-gpp-static/lib/amd64-Linux-gpp/static/</location>
+											<includes>
+												<include>*.a</include>
+											</includes>
+										</source>
+									</sources>
+								</mapping>
+								<mapping>
+									<directory>/usr/local/include/${project.artifactId}/</directory>
+									<filemode>750</filemode>
+									<sources>
+										<source>
+											<location>${project.build.directory}/nar/${project.artifactId}-${project.version}-noarch/include</location>
+										</source>
+									</sources>
+								</mapping>
+							</mappings>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
